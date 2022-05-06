@@ -1,4 +1,4 @@
-const keyboardKeys = [{
+const arrKeys = [{
         text: { en: '`', ru: 'ё' },
         upperText: { en: '~', ru: 'Ё' },
         code: 'Backquote',
@@ -342,7 +342,66 @@ class Key {
         const key = document.createElement('button');
         key.classList.add('keyboard__key');
         key.innerHTML = this.text[this.lang];
+        if (key.innerHTML === ' ') {
+            key.classList.add('space')
+        } else if (key.innerHTML === 'Shift') {
+            key.classList.add('shift')
+        } else if (key.innerHTML === 'Enter') {
+            key.classList.add('enter')
+        }
 
         return key;
     }
 }
+
+
+class Keyboard {
+    constructor(lang = 'en') {
+        this.keys = [];
+        this.lang = lang;
+        this.isCaps = false;
+        this.isShiftPressed = false;
+        this.isCtrl = false;
+        this.isAlt = false;
+        this.textarea = null;
+    }
+
+    init() {
+        const wrapper = createElement('div', 'wrapper');
+        document.body.append(wrapper);
+
+        const text = createElement('textarea', 'textarea');
+        text.setAttribute('autofocus', 'autofocus')
+        wrapper.append(text);
+
+        this.textarea = document.querySelector('.textarea');
+
+        const keyboard = createElement('div', 'keyboard');
+        wrapper.append(keyboard);
+
+        const keyboardKeys = createElement('div', 'keyboard__keys');
+        keyboard.append(keyboardKeys);
+        arrKeys.forEach((k) => {
+            const key = new Key(k, this.lang);
+            keyboardKeys.append(key.generate());
+        });
+
+        this.keys = document.querySelectorAll('.keyboard__key');
+
+        const description = createElement('div', 'description');
+        wrapper.append(description);
+
+        const descOS = createElement('p', 'description__os');
+        descOS.innerHTML = 'OS Windows';
+        description.append(descOS);
+
+        const descSwitchLang = createElement('p', 'description__switch-lang');
+        descSwitchLang.innerHTML = 'Switch the language: Ctrl + Alt';
+        description.append(descSwitchLang);
+    }
+
+
+}
+
+const keyboard = new Keyboard(localStorage.getItem('lang') || 'en')
+keyboard.init()
