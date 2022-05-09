@@ -343,11 +343,11 @@ class Key {
         key.classList.add('keyboard__key');
         key.innerHTML = this.text[this.lang];
         if (key.innerHTML === ' ') {
-            key.classList.add('space')
+            key.classList.add('space');
         } else if (key.innerHTML === 'Shift') {
-            key.classList.add('shift')
+            key.classList.add('shift');
         } else if (key.innerHTML === 'Enter') {
-            key.classList.add('enter')
+            key.classList.add('enter');
         }
 
         return key;
@@ -371,7 +371,7 @@ class Keyboard {
         document.body.append(wrapper);
 
         const text = createElement('textarea', 'textarea');
-        text.setAttribute('autofocus', 'autofocus')
+        text.setAttribute('autofocus', 'autofocus');
         wrapper.append(text);
 
         this.textarea = document.querySelector('.textarea');
@@ -388,6 +388,10 @@ class Keyboard {
 
         this.keys = document.querySelectorAll('.keyboard__key');
 
+        this.textarea.addEventListener('blur', () => {
+            this.textarea.focus();
+        });
+
         const description = createElement('div', 'description');
         wrapper.append(description);
 
@@ -398,10 +402,298 @@ class Keyboard {
         const descSwitchLang = createElement('p', 'description__switch-lang');
         descSwitchLang.innerHTML = 'Switch the language: Ctrl + Alt';
         description.append(descSwitchLang);
+
+        keyboardKeys.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (e.target.innerHTML === 'Caps Lock') {
+                if (e.target.classList.contains('keyboard__key-active')) {
+                    e.target.classList.remove('keyboard__key-active');
+                } else {
+                    e.target.classList.add('keyboard__key-active');
+                }
+            }
+            if (e.target.classList.contains('keyboard__key') && !e.target.classList.contains('shift')) {
+                this.identifyKey(e.target.innerHTML);
+            }
+        });
+
+        keyboardKeys.addEventListener('mousedown', (e) => {
+            if (e.target.classList.contains('shift')) {
+                this.isShiftPressed = true;
+                this.shiftKeyHandler();
+            }
+        });
+
+        keyboardKeys.addEventListener('mouseup', (e) => {
+            if (e.target.classList.contains('shift')) {
+                if (this.isCaps) {
+                    this.isShiftPressed = false;
+                    this.isCaps = !this.isCaps;
+                    this.capsKeyHandler();
+                    this.shiftKeyHandler();
+                    this.isCaps = !this.isCaps;
+                    this.capsKeyHandler();
+                } else {
+                    this.isShiftPressed = false;
+                    this.shiftKeyHandler();
+                }
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            const { key, keyFoundCode } = this.findKey(e.code);
+            if (!key) {
+                return;
+            }
+            if (key === 'Ctrl') {
+                this.isCtrl = !this.isCtrl;
+            } else if (key === 'Alt') {
+                this.isAlt = !this.isAlt;
+            }
+            this.identifyKey(key);
+            const target = this.findTarget(key, keyFoundCode, e.code);
+            if (target) {
+                if (target.classList.contains('keyboard__key-active') && target.innerHTML === 'Caps Lock') {
+                    target.classList.remove('keyboard__key-active');
+                } else {
+                    target.classList.add('keyboard__key-active');
+                }
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            e.preventDefault();
+            const { key, keyFoundCode } = this.findKey(e.code);
+            if (!key) {
+                return;
+            }
+            if (key === 'Caps Lock') {
+                return;
+            }
+            if (key === 'Ctrl') {
+                this.isCtrl = false;
+            }
+            if (key === 'Alt') {
+                this.isAlt = false;
+            }
+            if (key === 'Shift') {
+                if (this.isCaps) {
+                    this.isShiftPressed = false;
+                    this.isCaps = !this.isCaps;
+                    this.capsKeyHandler();
+                    this.shiftKeyHandler();
+                } else {
+                    this.isShiftPressed = false;
+                    this.shiftKeyHandler();
+                }
+            }
+
+            const target = this.findTarget(key, keyFoundCode, e.code);
+            if (target) {
+                target.classList.remove('keyboard__key-active');
+            }
+        });
+
     }
 
+    findKey(eventCode) {
+        let key;
+        const keyFound = arrKeys.find((k) => k.code === eventCode);
+        if (keyFound) {
+            key = this.isShiftPressed ? keyFound.upperText[this.lang] : keyFound.text[this.lang];
+        }
+        const keyFoundCode = keyFound.code;
+        return { key, keyFoundCode };
+    }
 
+    findTarget(key, keyFoundCode, eventCode) {
+        let target;
+        for (const k of this.keys) {
+            if (k.innerHTML === key || k.innerHTML === key.toUpperCase() ||
+                k.innerHTML === key.toLowerCase() || (k.innerHTML === '↑' && key === '&uarr;') ||
+                (k.innerHTML === '←' && key === '&larr;') ||
+                (k.innerHTML === '↓' && key === '&darr;') ||
+                (k.innerHTML === '→' && key === '&rarr;')) {
+                if (eventCode === keyFoundCode) {
+                    target = k;
+                    if (eventCode.includes('Left')) {
+                        break;
+                    } else if (eventCode.includes('Right')) {
+                        continue;
+                    }
+                }
+            }
+        }
+        return target;
+    }
+
+    switchLang() {
+        const notLang = this.lang;
+        this.lang = this.lang === 'en' ? 'ru' : 'en';
+        localStorage.setItem('lang', this.lang);
+        for (const btn of this.keys) {
+            let key = arrKeys.find((k) => k.text[notLang] === btn.innerHTML ||
+                k.upperText[notLang] === btn.innerHTML);
+            if (key) {
+                if (key.code.includes('Digit')) {
+                    continue;
+                }
+                if (key.code.includes('Key') || key.code === 'Backquote' || key.code === 'BracketLeft' || key.code === 'BracketRight' || key.code === 'Semicolon' || key.code === 'Quote' || key.code === 'Comma' || key.code === 'Period' || key.code === 'Slash') {
+                    key = this.isCaps ? key.upperText[this.lang] : key.text[this.lang];
+                    btn.innerHTML = key;
+                }
+            }
+        }
+    }
+
+    shiftKeyHandler() {
+        this.keys.forEach((btn) => {
+            let key = arrKeys.find((k) => k.text[this.lang] === btn.innerHTML ||
+                k.upperText[this.lang] === btn.innerHTML);
+            if (key) {
+                key = this.isShiftPressed ? key.upperText[this.lang] : key.text[this.lang];
+                btn.innerHTML = key;
+            }
+        });
+        if (this.isCaps && this.isShiftPressed) {
+            this.capsKeyHandler();
+        }
+    }
+
+    capsKeyHandler() {
+        this.keys.forEach((btn) => {
+            let key = arrKeys.find((k) => k.text[this.lang] === btn.innerHTML ||
+                k.upperText[this.lang] === btn.innerHTML);
+            let shouldChangeKey = false;
+            if (key) {
+                if (key.code.includes('Key')) {
+                    shouldChangeKey = true;
+                }
+                if (this.lang === 'ru') {
+                    if (key.code === 'Backquote' || key.code === 'BracketLeft' || key.code === 'BracketRight' || key.code === 'Semicolon' || key.code === 'Quote' || key.code === 'Comma' || key.code === 'Period') {
+                        shouldChangeKey = true;
+                    }
+                }
+            }
+            if (shouldChangeKey) {
+                key = this.isCaps ^ this.isShiftPressed ? key.upperText[this.lang] : key.text[this.lang];
+                btn.innerHTML = key;
+            }
+        });
+    }
+
+    setCursor(pos) {
+        this.textarea.focus();
+        this.textarea.selectionStart = pos;
+        this.textarea.selectionEnd = pos;
+    }
+
+    handleStdTabEnter(value, cursorPos) {
+        this.textarea.value = this.textarea.value.substring(0, cursorPos) +
+            value + this.textarea.value.substring(cursorPos);
+        this.setCursor(cursorPos + value.length);
+    }
+
+    handleBackspaceDelete(cursorPos) {
+        this.textarea.value = this.textarea.value.substring(0, cursorPos) +
+            this.textarea.value.substring(cursorPos + 1);
+        this.setCursor(cursorPos);
+    }
+
+    stdKeyHandler(key) {
+        switch (key) {
+            case '&amp;':
+                key = '&';
+                break;
+            case '&lt;':
+                key = '<';
+                break;
+            case '&gt;':
+                key = '>';
+                break;
+            default:
+                break;
+        }
+
+        const value = this.isCaps ^ this.isShiftPressed ? key.toUpperCase() : key.toLowerCase();
+        this.handleStdTabEnter(value, this.textarea.selectionStart);
+    }
+
+    arrowsKeyHandler(arrow) {
+        switch (arrow) {
+            case '↑':
+            case '&uarr;':
+                this.setCursor(0);
+                break;
+            case '→':
+            case '&rarr;':
+                this.setCursor(this.textarea.selectionStart + 1);
+                break;
+            case '↓':
+            case '&darr;':
+                this.setCursor(this.textarea.value.length);
+                break;
+
+            case '←':
+            case '&larr;':
+                this.setCursor(this.textarea.selectionStart - 1);
+                break;
+            default:
+                break;
+        }
+    }
+
+    identifyKey(key) {
+        switch (key) {
+            case 'Backspace':
+                this.handleBackspaceDelete(this.textarea.selectionStart - 1);
+                break;
+            case 'Tab':
+                this.handleStdTabEnter('    ', this.textarea.selectionStart);
+                break;
+            case 'Del':
+                this.handleBackspaceDelete(this.textarea.selectionStart);
+                break;
+            case 'Caps Lock':
+                this.isCaps = !this.isCaps;
+                this.capsKeyHandler();
+                break;
+            case 'Shift':
+                this.isShiftPressed = true;
+                this.shiftKeyHandler();
+                break;
+            case 'Ctrl':
+                if (this.isCtrl && this.isAlt) {
+                    this.switchLang();
+                }
+                break;
+            case 'Win':
+                break;
+            case 'Alt':
+                if (this.isCtrl && this.isAlt) {
+                    this.switchLang();
+                }
+                break;
+            case 'Enter':
+                this.handleStdTabEnter('\n', this.textarea.selectionStart);
+                break;
+            case '↑':
+            case '&uarr;':
+            case '→':
+            case '&rarr;':
+            case '↓':
+            case '&darr;':
+            case '←':
+            case '&larr;':
+                this.arrowsKeyHandler(key);
+                break;
+            default:
+                this.stdKeyHandler(key);
+                break;
+        }
+    }
 }
 
-const keyboard = new Keyboard(localStorage.getItem('lang') || 'en')
-keyboard.init()
+const keyboard = new Keyboard(localStorage.getItem('lang') || 'en');
+keyboard.init();
